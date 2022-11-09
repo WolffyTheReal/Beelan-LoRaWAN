@@ -162,18 +162,37 @@ bool LoRaWANClass::join(void)
     {
         randomChannel();
     }
-    // join request
-    LoRa_Send_JoinReq(&OTAA_Data, &LoRa_Settings);
-    // delay(900);
-    // loop for <timeout> wait for join accept
-    prev_millis = millis();
-    do
-    {
-        join_status = LORA_join_Accept(&Buffer_Rx, &Session_Data, &OTAA_Data, &Message_Rx, &LoRa_Settings);
+    // Check if EU_868 is used as Frequency and use the Fix from Github issue 111
+    #if defined(EU_868)
+        for (size_t i = 0; i < 3 && !join_status; i++)
+        {
+            LoRa_Settings.Channel_Tx = i;
+            // join request
+            LoRa_Send_JoinReq(&OTAA_Data, &LoRa_Settings);
+            // delay(900);
+            // loop for <timeout> wait for join accept
+            prev_millis = millis();
+            do
+            {
+                join_status = LORA_join_Accept(&Buffer_Rx, &Session_Data, &OTAA_Data, &Message_Rx, &LoRa_Settings);
+            } while ((millis() - prev_millis) < timeout && !join_status);
+            return join_status;
+        }
+    #endif
 
-    } while ((millis() - prev_millis) < timeout && !join_status);
-
-    return join_status;
+    // If EU_868 is not used Continue as normal
+    #if !defined(EU_868)
+        // join request
+        LoRa_Send_JoinReq(&OTAA_Data, &LoRa_Settings);
+        // delay(900);
+        // loop for <timeout> wait for join accept
+        prev_millis = millis();
+        do
+        {
+            join_status = LORA_join_Accept(&Buffer_Rx, &Session_Data, &OTAA_Data, &Message_Rx, &LoRa_Settings);
+        } while ((millis() - prev_millis) < timeout && !join_status);
+        return join_status;
+    #endif
 }
 
 void LoRaWANClass::sleep(void)
